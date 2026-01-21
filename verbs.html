@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordMatch - Verb Conjugations</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+            min-height: 100vh;
+            color: white;
+            padding: 16px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { text-align: center; font-size: 40px; margin: 20px 0 10px; font-weight: 900; }
+        .subtitle { text-align: center; opacity: 0.9; margin-bottom: 30px; }
+        .tense-grid { display: grid; gap: 16px; margin: 20px 0; }
+        .tense-btn {
+            padding: 24px;
+            border: none;
+            border-radius: 16px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            text-align: left;
+            background: rgba(255,255,255,0.9);
+            color: #1f2937;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .tense-btn:active { transform: scale(0.95); }
+        .word-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
+        .word-column { display: flex; flex-direction: column; gap: 12px; }
+        .word-btn {
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            word-wrap: break-word;
+            line-height: 1.3;
+            transition: opacity 0.2s;
+        }
+        .word-btn:active { opacity: 0.8; }
+        .blue { background: #3b82f6; color: white; }
+        .purple { background: #8b5cf6; color: white; }
+        .blue.selected, .purple.selected { opacity: 0.6; }
+        .blue.matched { background: #93c5fd; color: #1e3a8a; opacity: 0.5; }
+        .purple.matched { background: #c4b5fd; color: #5b21b6; opacity: 0.5; }
+        .header {
+            background: white;
+            color: #1f2937;
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+        }
+        .stats { display: flex; gap: 8px; margin-top: 12px; }
+        .stat {
+            flex: 1;
+            background: #f3f4f6;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 11px;
+        }
+        .stat-value { font-size: 18px; font-weight: bold; color: #f97316; }
+        .controls { display: flex; gap: 12px; margin-top: 16px; }
+        .control-btn {
+            flex: 1;
+            padding: 14px;
+            background: white;
+            color: #1f2937;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .emoji { font-size: 32px; }
+        .info { font-size: 12px; opacity: 0.8; margin-top: 4px; }
+        .feedback {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 24px 48px;
+            border-radius: 16px;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 1000;
+            animation: fadeInOut 0.6s;
+        }
+        .feedback.correct { background: #10b981; color: white; }
+        .feedback.wrong { background: #ef4444; color: white; }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="app"></div>
+    </div>
+    <script>
+const VERBS = {
+    present: `I am|Yo soy,You are|Tú eres,He/She is|Él/Ella es,We are|Nosotros somos,You are (pl)|Vosotros sois,They are|Ellos son,I am|Yo estoy,You are|Tú estás,He/She is|Él/Ella está,We are|Nosotros estamos,You are (pl)|Vosotros estáis,They are|Ellos están,I have|Yo tengo,You have|Tú tienes,He/She has|Él/Ella tiene,We have|Nosotros tenemos,You have (pl)|Vosotros tenéis,They have|Ellos tienen,I do|Yo hago,You do|Tú haces,He/She does|Él/Ella hace,We do|Nosotros hacemos,You do (pl)|Vosotros hacéis,They do|Ellos hacen,I go|Yo voy,You go|Tú vas,He/She goes|Él/Ella va,We go|Nosotros vamos,You go (pl)|Vosotros vais,They go|Ellos van,I can|Yo puedo,You can|Tú puedes,He/She can|Él/Ella puede,We can|Nosotros podemos,You can (pl)|Vosotros podéis,They can|Ellos pueden,I say|Yo digo,You say|Tú dices,He/She says|Él/Ella dice,We say|Nosotros decimos,You say (pl)|Vosotros decís,They say|Ellos dicen,I come|Yo vengo,You come|Tú vienes,He/She comes|Él/Ella viene,We come|Nosotros venimos,You come (pl)|Vosotros venís,They come|Ellos vienen,I want|Yo quiero,You want|Tú quieres,He/She wants|Él/Ella quiere,We want|Nosotros queremos,You want (pl)|Vosotros queréis,They want|Ellos quieren,I know|Yo sé,You know|Tú sabes,He/She knows|Él/Ella sabe,We know|Nosotros sabemos,You know (pl)|Vosotros sabéis,They know|Ellos saben,I speak|Yo hablo,You speak|Tú hablas,He/She speaks|Él/Ella habla,We speak|Nosotros hablamos,You speak (pl)|Vosotros habláis,They speak|Ellos hablan,I eat|Yo como,You eat|Tú comes,He/She eats|Él/Ella come,We eat|Nosotros comemos,You eat (pl)|Vosotros coméis,They eat|Ellos comen,I live|Yo vivo,You live|Tú vives,He/She lives|Él/Ella vive,We live|Nosotros vivimos,You live (pl)|Vosotros vivís,They live|Ellos viven`.split(','),
+    
+    preterite: `I was|Yo fui,You were|Tú fuiste,He/She was|Él/Ella fue,We were|Nosotros fuimos,You were (pl)|Vosotros fuisteis,They were|Ellos fueron,I had|Yo tuve,You had|Tú tuviste,He/She had|Él/Ella tuvo,We had|Nosotros tuvimos,You had (pl)|Vosotros tuvisteis,They had|Ellos tuvieron,I did|Yo hice,You did|Tú hiciste,He/She did|Él/Ella hizo,We did|Nosotros hicimos,You did (pl)|Vosotros hicisteis,They did|Ellos hicieron,I went|Yo fui,You went|Tú fuiste,He/She went|Él/Ella fue,We went|Nosotros fuimos,You went (pl)|Vosotros fuisteis,They went|Ellos fueron,I could|Yo pude,You could|Tú pudiste,He/She could|Él/Ella pudo,We could|Nosotros pudimos,You could (pl)|Vosotros pudisteis,They could|Ellos pudieron,I said|Yo dije,You said|Tú dijiste,He/She said|Él/Ella dijo,We said|Nosotros dijimos,You said (pl)|Vosotros dijisteis,They said|Ellos dijeron,I came|Yo vine,You came|Tú viniste,He/She came|Él/Ella vino,We came|Nosotros vinimos,You came (pl)|Vosotros vinisteis,They came|Ellos vinieron,I wanted|Yo quise,You wanted|Tú quisiste,He/She wanted|Él/Ella quiso,We wanted|Nosotros quisimos,You wanted (pl)|Vosotros quisisteis,They wanted|Ellos quisieron,I knew|Yo supe,You knew|Tú supiste,He/She knew|Él/Ella supo,We knew|Nosotros supimos,You knew (pl)|Vosotros supisteis,They knew|Ellos supieron,I spoke|Yo hablé,You spoke|Tú hablaste,He/She spoke|Él/Ella habló,We spoke|Nosotros hablamos,You spoke (pl)|Vosotros hablasteis,They spoke|Ellos hablaron,I ate|Yo comí,You ate|Tú comiste,He/She ate|Él/Ella comió,We ate|Nosotros comimos,You ate (pl)|Vosotros comisteis,They ate|Ellos comieron,I lived|Yo viví,You lived|Tú viviste,He/She lived|Él/Ella vivió,We lived|Nosotros vivimos,You lived (pl)|Vosotros vivisteis,They lived|Ellos vivieron`.split(','),
+    
+    imperfect: `I was|Yo era,You were|Tú eras,He/She was|Él/Ella era,We were|Nosotros éramos,You were (pl)|Vosotros erais,They were|Ellos eran,I was|Yo estaba,You were|Tú estabas,He/She was|Él/Ella estaba,We were|Nosotros estábamos,You were (pl)|Vosotros estabais,They were|Ellos estaban,I had|Yo tenía,You had|Tú tenías,He/She had|Él/Ella tenía,We had|Nosotros teníamos,You had (pl)|Vosotros teníais,They had|Ellos tenían,I did|Yo hacía,You did|Tú hacías,He/She did|Él/Ella hacía,We did|Nosotros hacíamos,You did (pl)|Vosotros hacíais,They did|Ellos hacían,I went|Yo iba,You went|Tú ibas,He/She went|Él/Ella iba,We went|Nosotros íbamos,You went (pl)|Vosotros ibais,They went|Ellos iban,I spoke|Yo hablaba,You spoke|Tú hablabas,He/She spoke|Él/Ella hablaba,We spoke|Nosotros hablábamos,You spoke (pl)|Vosotros hablabais,They spoke|Ellos hablaban,I ate|Yo comía,You ate|Tú comías,He/She ate|Él/Ella comía,We ate|Nosotros comíamos,You ate (pl)|Vosotros comíais,They ate|Ellos comían,I lived|Yo vivía,You lived|Tú vivías,He/She lived|Él/Ella vivía,We lived|Nosotros vivíamos,You lived (pl)|Vosotros vivíais,They lived|Ellos vivían`.split(','),
+    
+    future: `I will be|Yo seré,You will be|Tú serás,He/She will be|Él/Ella será,We will be|Nosotros seremos,You will be (pl)|Vosotros seréis,They will be|Ellos serán,I will be|Yo estaré,You will be|Tú estarás,He/She will be|Él/Ella estará,We will be|Nosotros estaremos,You will be (pl)|Vosotros estaréis,They will be|Ellos estarán,I will have|Yo tendré,You will have|Tú tendrás,He/She will have|Él/Ella tendrá,We will have|Nosotros tendremos,You will have (pl)|Vosotros tendréis,They will have|Ellos tendrán,I will do|Yo haré,You will do|Tú harás,He/She will do|Él/Ella hará,We will do|Nosotros haremos,You will do (pl)|Vosotros haréis,They will do|Ellos harán,I will go|Yo iré,You will go|Tú irás,He/She will go|Él/Ella irá,We will go|Nosotros iremos,You will go (pl)|Vosotros iréis,They will go|Ellos irán,I will be able|Yo podré,You will be able|Tú podrás,He/She will be able|Él/Ella podrá,We will be able|Nosotros podremos,You will be able (pl)|Vosotros podréis,They will be able|Ellos podrán,I will say|Yo diré,You will say|Tú dirás,He/She will say|Él/Ella dirá,We will say|Nosotros diremos,You will say (pl)|Vosotros diréis,They will say|Ellos dirán,I will come|Yo vendré,You will come|Tú vendrás,He/She will come|Él/Ella vendrá,We will come|Nosotros vendremos,You will come (pl)|Vosotros vendréis,They will come|Ellos vendrán,I will want|Yo querré,You will want|Tú querrás,He/She will want|Él/Ella querrá,We will want|Nosotros querremos,You will want (pl)|Vosotros querréis,They will want|Ellos querrán,I will know|Yo sabré,You will know|Tú sabrás,He/She will know|Él/Ella sabrá,We will know|Nosotros sabremos,You will know (pl)|Vosotros sabréis,They will know|Ellos sabrán,I will speak|Yo hablaré,You will speak|Tú hablarás,He/She will speak|Él/Ella hablará,We will speak|Nosotros hablaremos,You will speak (pl)|Vosotros hablaréis,They will speak|Ellos hablarán,I will eat|Yo comeré,You will eat|Tú comerás,He/She will eat|Él/Ella comerá,We will eat|Nosotros comeremos,You will eat (pl)|Vosotros comeréis,They will eat|Ellos comerán,I will live|Yo viviré,You will live|Tú vivirás,He/She will live|Él/Ella vivirá,We will live|Nosotros viviremos,You will live (pl)|Vosotros viviréis,They will live|Ellos vivirán`.split(',')
+};
+
+const TENSES = [
+    { key: 'present', name: 'Present', emoji: '📝', info: '90+ conjugations' },
+    { key: 'preterite', name: 'Preterite', emoji: '⏮️', info: '70+ conjugations' },
+    { key: 'imperfect', name: 'Imperfect', emoji: '🔄', info: '50+ conjugations' },
+    { key: 'future', name: 'Future', emoji: '🔮', info: '70+ conjugations' }
+];
+
+function parseVerbs(str) {
+    return str.map(pair => {
+        const [e, s] = pair.split('|');
+        return { e, s };
+    });
+}
+
+let state = {
+    tense: '',
+    score: 0,
+    matched: 0,
+    streak: 0,
+    round: 0,
+    selected: [],
+    matchedIds: [],
+    currentPairs: [],
+    used: new Set()
+};
+
+function shuffle(arr) {
+    return [...arr].sort(() => Math.random() - 0.5);
+}
+
+function showFeedback(isCorrect) {
+    const feedback = document.createElement('div');
+    feedback.className = `feedback ${isCorrect ? 'correct' : 'wrong'}`;
+    feedback.textContent = isCorrect ? 'Perfect! ✓' : 'Wrong! ✗';
+    document.body.appendChild(feedback);
+    setTimeout(() => feedback.remove(), 600);
+}
+
+function startGame(tense) {
+    state.tense = tense;
+    state.score = 0;
+    state.matched = 0;
+    state.streak = 0;
+    state.round = 0;
+    state.used = new Set();
+    nextRound();
+}
+
+function nextRound() {
+    state.selected = [];
+    state.matchedIds = [];
+    state.round++;
+    
+    const allVerbs = parseVerbs(VERBS[state.tense]);
+    const available = allVerbs.filter((_, i) => !state.used.has(i));
+    
+    if (available.length < 5) {
+        state.used = new Set();
+    }
+    
+    const pairs = [];
+    const used = new Set(state.used);
+    
+    while (pairs.length < 5 && pairs.length < allVerbs.length) {
+        const idx = Math.floor(Math.random() * allVerbs.length);
+        if (!used.has(idx)) {
+            pairs.push({ ...allVerbs[idx], id: pairs.length });
+            used.add(idx);
+        }
+    }
+    
+    state.used = used;
+    state.currentPairs = pairs;
+    renderGame();
+}
+
+function renderTenseSelect() {
+    const app = document.getElementById('app');
+    app.innerHTML = `
+        <h1>⚡ Verb Conjugations</h1>
+        <p class="subtitle">Choose a tense</p>
+        <div class="tense-grid">
+            ${TENSES.map(t => `
+                <button class="tense-btn" onclick="startGame('${t.key}')">
+                    <div>
+                        <div style="font-size: 22px; font-weight: 900;">${t.name}</div>
+                        <div class="info">${t.info}</div>
+                    </div>
+                    <div class="emoji">${t.emoji}</div>
+                </button>
+            `).join('')}
+        </div>
+    `;
+}
+
+function renderGame() {
+    const english = shuffle(state.currentPairs.map(p => ({...p, side: 'en'})));
+    const spanish = shuffle(state.currentPairs.map(p => ({...p, side: 'es'})));
+    const tenseName = TENSES.find(t => t.key === state.tense).name;
+    
+    document.getElementById('app').innerHTML = `
+        <button class="back-btn" onclick="renderTenseSelect()">← Change Tense</button>
+        
+        <div class="header">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <div>
+                    <h2 style="margin: 0; font-size: 20px;">Verb Conjugations</h2>
+                    <div style="font-size: 12px; opacity: 0.7;">${tenseName}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 28px; font-weight: 900; color: #f97316;">${state.score}</div>
+                    <div style="font-size: 11px; opacity: 0.7;">points</div>
+                </div>
+            </div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value">${state.matched}</div>
+                    <div>Matched</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">${state.streak}</div>
+                    <div>Streak</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">${state.round}</div>
+                    <div>Round</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="word-grid">
+            <div class="word-column">
+                ${english.map(w => `
+                    <button 
+                        class="word-btn blue ${state.selected.includes('en'+w.id) ? 'selected' : ''} ${state.matchedIds.includes(w.id) ? 'matched' : ''}"
+                        onclick="selectWord('en${w.id}', ${w.id})"
+                        ${state.matchedIds.includes(w.id) ? 'disabled' : ''}
+                    >
+                        ${w.e}
+                    </button>
+                `).join('')}
+            </div>
+            <div class="word-column">
+                ${spanish.map(w => `
+                    <button 
+                        class="word-btn purple ${state.selected.includes('es'+w.id) ? 'selected' : ''} ${state.matchedIds.includes(w.id) ? 'matched' : ''}"
+                        onclick="selectWord('es${w.id}', ${w.id})"
+                        ${state.matchedIds.includes(w.id) ? 'disabled' : ''}
+                    >
+                        ${w.s}
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="control-btn" onclick="nextRound()">New Verbs</button>
+            <button class="control-btn" onclick="renderTenseSelect()">Reset</button>
+        </div>
+    `;
+}
+
+function selectWord(wordId, pairId) {
+    if (state.selected.includes(wordId) || state.matchedIds.includes(pairId)) return;
+    
+    state.selected.push(wordId);
+    
+    const btn = document.querySelector(`button[onclick="selectWord('${wordId}', ${pairId})"]`);
+    if (btn) btn.classList.add('selected');
+    
+    if (state.selected.length === 2) {
+        const id1 = parseInt(state.selected[0].slice(2));
+        const id2 = parseInt(state.selected[1].slice(2));
+        
+        if (id1 === id2) {
+            showFeedback(true);
+            state.matchedIds.push(pairId);
+            state.score += 15;
+            state.matched += 1;
+            state.streak += 1;
+            
+            state.selected.forEach(id => {
+                const b = document.querySelectorAll(`button[onclick*="${id}"]`)[0];
+                if (b) {
+                    b.classList.remove('selected');
+                    b.classList.add('matched');
+                    b.disabled = true;
+                }
+            });
+            
+            setTimeout(() => {
+                state.selected = [];
+                if (state.matchedIds.length === 5) {
+                    setTimeout(nextRound, 500);
+                }
+            }, 600);
+        } else {
+            showFeedback(false);
+            state.streak = 0;
+            setTimeout(() => {
+                state.selected.forEach(id => {
+                    const b = document.querySelectorAll(`button[onclick*="${id}"]`)[0];
+                    if (b) b.classList.remove('selected');
+                });
+                state.selected = [];
+            }, 600);
+        }
+    }
+}
+
+renderTenseSelect();
+    </script>
+</body>
+</html>

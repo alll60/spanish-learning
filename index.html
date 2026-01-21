@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spanish Learning - WordMatch</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container { max-width: 600px; width: 100%; }
+        h1 { 
+            text-align: center; 
+            font-size: 56px; 
+            margin-bottom: 10px; 
+            font-weight: 900;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .subtitle { 
+            text-align: center; 
+            font-size: 20px; 
+            opacity: 0.9; 
+            margin-bottom: 50px; 
+        }
+        .mode-grid { 
+            display: grid; 
+            gap: 20px; 
+        }
+        .mode-btn {
+            padding: 40px;
+            border: none;
+            border-radius: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            text-align: center;
+            color: white;
+            text-decoration: none;
+            display: block;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+        .mode-btn:active { transform: scale(0.95); }
+        .mode-words { background: linear-gradient(135deg, #3b82f6, #8b5cf6); }
+        .mode-phrases { background: linear-gradient(135deg, #10b981, #14b8a6); }
+        .mode-verbs { background: linear-gradient(135deg, #f97316, #ef4444); }
+        .mode-pronouns { background: linear-gradient(135deg, #8b5cf6, #a855f7); }
+        .emoji { font-size: 48px; margin-bottom: 10px; }
+        .mode-name { font-size: 32px; font-weight: 900; margin-bottom: 8px; }
+        .mode-info { font-size: 14px; opacity: 0.9; }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            opacity: 0.7;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🇪🇸 Spanish Learning</h1>
+        <p class="subtitle">Choose Your Game Mode</p>
+        
+        <div class="mode-grid">
+            <a href="spanish-words.html" class="mode-btn mode-words">
+                <div class="emoji">📚</div>
+                <div class="mode-name">Words</div>
+                <div class="mode-info">200+ words • 4 difficulty levels</div>
+            </a>
+            
+            <a href="phrases.html" class="mode-btn mode-phrases">
+                <div class="emoji">💬</div>
+                <div class="mode-name">Common Phrases</div>
+                <div class="mode-info">200+ phrases • 11 categories</div>
+            </a>
+            
+            <a href="verbs.html" class="mode-btn mode-verbs">
+                <div class="emoji">⚡</div>
+                <div class="mode-name">Verb Conjugations</div>
+                <div class="mode-info">280+ conjugations • 4 tenses</div>
+            </a>
+            
+            <a href="pronouns.html" class="mode-btn mode-pronouns">
+                <div class="emoji">👤</div>
+                <div class="mode-name">Pronoun Practice</div>
+                <div class="mode-info">90 conjugations • 15 verbs</div>
+            </a>
+        </div>
+        
+        <div class="footer">
+            Match words • Learn Spanish • Have fun!
+        </div>
+    </div>
+</body>
+</html>

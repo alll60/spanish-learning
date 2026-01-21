@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordMatch - Phrases Mode</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
+            min-height: 100vh;
+            color: white;
+            padding: 16px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { text-align: center; font-size: 40px; margin: 20px 0 10px; font-weight: 900; }
+        .subtitle { text-align: center; opacity: 0.9; margin-bottom: 30px; }
+        .category-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
+        .cat-btn {
+            padding: 20px 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            text-align: center;
+            background: rgba(255,255,255,0.9);
+            color: #1f2937;
+        }
+        .cat-btn:active { transform: scale(0.95); }
+        .word-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
+        .word-column { display: flex; flex-direction: column; gap: 12px; }
+        .word-btn {
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            word-wrap: break-word;
+            line-height: 1.3;
+            transition: opacity 0.2s;
+        }
+        .word-btn:active { opacity: 0.8; }
+        .blue { background: #3b82f6; color: white; }
+        .purple { background: #8b5cf6; color: white; }
+        .blue.selected, .purple.selected { opacity: 0.6; }
+        .blue.matched { background: #93c5fd; color: #1e3a8a; opacity: 0.5; }
+        .purple.matched { background: #c4b5fd; color: #5b21b6; opacity: 0.5; }
+        .header {
+            background: white;
+            color: #1f2937;
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+        }
+        .stats { display: flex; gap: 8px; margin-top: 12px; }
+        .stat {
+            flex: 1;
+            background: #f3f4f6;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 11px;
+        }
+        .stat-value { font-size: 18px; font-weight: bold; color: #10b981; }
+        .controls { display: flex; gap: 12px; margin-top: 16px; }
+        .control-btn {
+            flex: 1;
+            padding: 14px;
+            background: white;
+            color: #1f2937;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .emoji { font-size: 28px; margin-bottom: 6px; }
+        .feedback {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 24px 48px;
+            border-radius: 16px;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 1000;
+            animation: fadeInOut 0.6s;
+        }
+        .feedback.correct { background: #10b981; color: white; }
+        .feedback.wrong { background: #ef4444; color: white; }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="app"></div>
+    </div>
+    <script>
+const PHRASES = {
+    greetings: `Good morning|Buenos días,Good afternoon|Buenas tardes,Good evening|Buenas noches,How are you?|¿Cómo estás?,I'm fine, thanks|Estoy bien, gracias,And you?|¿Y tú?,Nice to meet you|Encantado de conocerte,See you later|Hasta luego,See you tomorrow|Hasta mañana,Have a good day|Que tengas un buen día,Welcome|Bienvenido,Long time no see|Cuánto tiempo sin verte,How's it going?|¿Qué tal?,What's up?|¿Qué pasa?,Take care|Cuídate`.split(','),
+    
+    courtesy: `Please|Por favor,Thank you very much|Muchas gracias,You're welcome|De nada,Excuse me|Disculpe,I'm sorry|Lo siento,No problem|No hay problema,Don't worry|No te preocupes,Excuse me (to pass)|Permiso,Bless you|Salud,My pleasure|Es un placer,With pleasure|Con mucho gusto,Sorry for the inconvenience|Perdón por las molestias,I apologize|Pido disculpas,May I?|¿Puedo?,After you|Después de usted`.split(','),
+    
+    conversation: `What's your name?|¿Cómo te llamas?,My name is...|Me llamo...,Where are you from?|¿De dónde eres?,I'm from...|Soy de...,How old are you?|¿Cuántos años tienes?,I am ... years old|Tengo ... años,Do you speak English?|¿Hablas inglés?,I speak a little Spanish|Hablo un poco de español,I don't understand|No entiendo,Can you repeat that?|¿Puedes repetir?,More slowly, please|Más despacio, por favor,What does that mean?|¿Qué significa eso?,How do you say...?|¿Cómo se dice...?,I don't speak Spanish|No hablo español,Can you help me?|¿Puedes ayudarme?,Of course|Por supuesto,I think so|Creo que sí,I don't think so|Creo que no,Maybe|Quizás,Exactly|Exactamente`.split(','),
+    
+    questions: `What?|¿Qué?,Who?|¿Quién?,Where?|¿Dónde?,When?|¿Cuándo?,Why?|¿Por qué?,How?|¿Cómo?,How much?|¿Cuánto?,How many?|¿Cuántos?,Which one?|¿Cuál?,What time is it?|¿Qué hora es?,Where is...?|¿Dónde está...?,How much does it cost?|¿Cuánto cuesta?,What's this?|¿Qué es esto?,Can I...?|¿Puedo...?,Do you have...?|¿Tienes...?,Is there...?|¿Hay...?,Where can I find...?|¿Dónde puedo encontrar...?,What's happening?|¿Qué está pasando?,What's wrong?|¿Qué pasa?,Are you sure?|¿Estás seguro?`.split(','),
+    
+    restaurant: `A table for two, please|Una mesa para dos, por favor,The menu, please|El menú, por favor,I would like...|Me gustaría...,I'll have...|Voy a tomar...,What do you recommend?|¿Qué recomiendas?,I'm vegetarian|Soy vegetariano,I'm allergic to...|Soy alérgico a...,The check, please|La cuenta, por favor,Is service included?|¿Está incluido el servicio?,It was delicious|Estaba delicioso,Can I have the bill?|¿Me trae la cuenta?,Do you accept credit cards?|¿Aceptan tarjetas de crédito?,A glass of water, please|Un vaso de agua, por favor,Another round, please|Otra ronda, por favor,Enjoy your meal|Buen provecho,I'm full|Estoy lleno,I'm hungry|Tengo hambre,I'm thirsty|Tengo sed,To go, please|Para llevar, por favor,Can I see the wine list?|¿Puedo ver la carta de vinos?`.split(','),
+    
+    shopping: `How much is this?|¿Cuánto cuesta esto?,It's too expensive|Es muy caro,Do you have it cheaper?|¿Tiene algo más barato?,Can I try it on?|¿Puedo probármelo?,What size?|¿Qué talla?,I'll take it|Me lo llevo,Do you accept returns?|¿Aceptan devoluciones?,I'm just looking|Solo estoy mirando,Do you have this in...?|¿Tienen esto en...?,What's on sale?|¿Qué está en oferta?,Can I get a discount?|¿Me puede hacer un descuento?,Where is the fitting room?|¿Dónde está el probador?,Do you have a receipt?|¿Tiene el recibo?,I need a bag|Necesito una bolsa,Cash or card?|¿Efectivo o tarjeta?,Keep the change|Quédese con el cambio,Can I pay in installments?|¿Puedo pagar a plazos?,Is this on sale?|¿Está en rebaja?,I want to return this|Quiero devolver esto,When does it close?|¿A qué hora cierra?`.split(','),
+    
+    directions: `Where is the bathroom?|¿Dónde está el baño?,I'm lost|Estoy perdido,Can you show me on the map?|¿Puede mostrarme en el mapa?,How do I get to...?|¿Cómo llego a...?,Turn left|Gira a la izquierda,Turn right|Gira a la derecha,Go straight|Sigue recto,It's nearby|Está cerca,It's far|Está lejos,On the corner|En la esquina,At the traffic light|En el semáforo,Next to...|Al lado de...,In front of...|Enfrente de...,Behind...|Detrás de...,How far is it?|¿A qué distancia está?,Can I walk there?|¿Puedo ir caminando?,Do I need to take a taxi?|¿Necesito tomar un taxi?,Which bus goes to...?|¿Qué autobús va a...?,Where is the nearest...?|¿Dónde está el/la más cercano/a...?,Is it this way?|¿Es por aquí?`.split(','),
+    
+    travel: `I need a ticket to...|Necesito un billete para...,What time does it leave?|¿A qué hora sale?,What time does it arrive?|¿A qué hora llega?,Where is platform...?|¿Dónde está el andén...?,I have a reservation|Tengo una reserva,Can I see your passport?|¿Puedo ver su pasaporte?,I'm here on vacation|Estoy aquí de vacaciones,How long are you staying?|¿Cuánto tiempo te quedas?,I'm staying for ... days|Me quedo ... días,Where are you staying?|¿Dónde te hospedas?,I have nothing to declare|No tengo nada que declarar,My luggage is lost|Se perdió mi equipaje,Where is the exit?|¿Dónde está la salida?,Call me a taxi, please|Llámeme un taxi, por favor,To the airport, please|Al aeropuerto, por favor,Stop here, please|Pare aquí, por favor,How much is the fare?|¿Cuánto es la tarifa?,Can I have a receipt?|¿Me puede dar un recibo?,Is this the right train?|¿Es este el tren correcto?,I missed my flight|Perdí mi vuelo`.split(','),
+    
+    hotel: `I have a reservation|Tengo una reserva,Check in, please|Registrarme, por favor,Check out, please|Salida, por favor,Do you have any rooms available?|¿Tienen habitaciones disponibles?,How much per night?|¿Cuánto por noche?,Can I see the room?|¿Puedo ver la habitación?,I need a wake-up call|Necesito que me despierten,What time is breakfast?|¿A qué hora es el desayuno?,The WiFi password, please|La contraseña del WiFi, por favor,Can I have an extra towel?|¿Puedo tener una toalla extra?,The air conditioning doesn't work|El aire acondicionado no funciona,Can you call me a taxi?|¿Puede llamarme un taxi?,Where is the elevator?|¿Dónde está el ascensor?,I'd like to extend my stay|Me gustaría extender mi estancia,Can I leave my luggage here?|¿Puedo dejar mi equipaje aquí?,What time is checkout?|¿A qué hora es la salida?,Do you have a safe?|¿Tienen caja fuerte?,The room needs cleaning|La habitación necesita limpieza,Can I have my bill?|¿Puedo tener mi cuenta?,Is breakfast included?|¿Está incluido el desayuno?`.split(','),
+    
+    emergency: `Help!|¡Ayuda!,Call the police!|¡Llame a la policía!,Call an ambulance!|¡Llame una ambulancia!,I need a doctor|Necesito un médico,Where is the hospital?|¿Dónde está el hospital?,I'm lost|Estoy perdido,I don't feel well|No me siento bien,It's an emergency|Es una emergencia,I need help|Necesito ayuda,Stop!|¡Alto!,Be careful!|¡Ten cuidado!,Fire!|¡Fuego!,I've been robbed|Me han robado,I lost my passport|Perdí mi pasaporte,Can you help me?|¿Puede ayudarme?,I need to contact my embassy|Necesito contactar mi embajada,I'm allergic to...|Soy alérgico a...,I have insurance|Tengo seguro,Where is the police station?|¿Dónde está la comisaría?,It hurts here|Me duele aquí`.split(','),
+    
+    feelings: `I'm happy|Estoy feliz,I'm sad|Estoy triste,I'm tired|Estoy cansado,I'm excited|Estoy emocionado,I'm worried|Estoy preocupado,I'm nervous|Estoy nervioso,I'm bored|Estoy aburrido,I'm angry|Estoy enojado,I'm scared|Tengo miedo,I'm confused|Estoy confundido,I'm surprised|Estoy sorprendido,I'm stressed|Estoy estresado,I'm relaxed|Estoy relajado,I'm grateful|Estoy agradecido,I'm disappointed|Estoy decepcionado,I'm proud|Estoy orgulloso,I'm embarrassed|Estoy avergonzado,I'm frustrated|Estoy frustrado,I'm hopeful|Tengo esperanza,I'm comfortable|Estoy cómodo`.split(','),
+};
+
+const CATEGORIES = [
+    { key: 'greetings', name: 'Greetings', emoji: '👋' },
+    { key: 'courtesy', name: 'Courtesy', emoji: '🙏' },
+    { key: 'conversation', name: 'Conversation', emoji: '💬' },
+    { key: 'questions', name: 'Questions', emoji: '❓' },
+    { key: 'restaurant', name: 'Restaurant', emoji: '🍽️' },
+    { key: 'shopping', name: 'Shopping', emoji: '🛍️' },
+    { key: 'directions', name: 'Directions', emoji: '🗺️' },
+    { key: 'travel', name: 'Travel', emoji: '✈️' },
+    { key: 'hotel', name: 'Hotel', emoji: '🏨' },
+    { key: 'emergency', name: 'Emergency', emoji: '🚨' },
+    { key: 'feelings', name: 'Feelings', emoji: '😊' },
+];
+
+function parsePhrases(str) {
+    return str.map(pair => {
+        const [e, s] = pair.split('|');
+        return { e, s };
+    });
+}
+
+let state = {
+    category: '',
+    score: 0,
+    matched: 0,
+    streak: 0,
+    round: 0,
+    selected: [],
+    matchedIds: [],
+    currentPairs: [],
+    used: new Set()
+};
+
+function shuffle(arr) {
+    return [...arr].sort(() => Math.random() - 0.5);
+}
+
+function showFeedback(isCorrect) {
+    const feedback = document.createElement('div');
+    feedback.className = `feedback ${isCorrect ? 'correct' : 'wrong'}`;
+    feedback.textContent = isCorrect ? 'Perfect! ✓' : 'Wrong! ✗';
+    document.body.appendChild(feedback);
+    setTimeout(() => feedback.remove(), 600);
+}
+
+function startGame(cat) {
+    state.category = cat;
+    state.score = 0;
+    state.matched = 0;
+    state.streak = 0;
+    state.round = 0;
+    state.used = new Set();
+    nextRound();
+}
+
+function nextRound() {
+    state.selected = [];
+    state.matchedIds = [];
+    state.round++;
+    
+    const allPhrases = parsePhrases(PHRASES[state.category]);
+    const available = allPhrases.filter((_, i) => !state.used.has(i));
+    
+    if (available.length < 5) {
+        state.used = new Set();
+    }
+    
+    const pairs = [];
+    const used = new Set(state.used);
+    
+    while (pairs.length < 5 && pairs.length < allPhrases.length) {
+        const idx = Math.floor(Math.random() * allPhrases.length);
+        if (!used.has(idx)) {
+            pairs.push({ ...allPhrases[idx], id: pairs.length });
+            used.add(idx);
+        }
+    }
+    
+    state.used = used;
+    state.currentPairs = pairs;
+    renderGame();
+}
+
+function renderCategorySelect() {
+    const app = document.getElementById('app');
+    app.innerHTML = `
+        <h1>Phrase Match</h1>
+        <p class="subtitle">Choose a category</p>
+        <div class="category-grid">
+            ${CATEGORIES.map(cat => `
+                <button class="cat-btn" onclick="startGame('${cat.key}')">
+                    <div class="emoji">${cat.emoji}</div>
+                    <div>${cat.name}</div>
+                </button>
+            `).join('')}
+        </div>
+    `;
+}
+
+function renderGame() {
+    const english = shuffle(state.currentPairs.map(p => ({...p, side: 'en'})));
+    const spanish = shuffle(state.currentPairs.map(p => ({...p, side: 'es'})));
+    const catName = CATEGORIES.find(c => c.key === state.category).name;
+    
+    document.getElementById('app').innerHTML = `
+        <button class="back-btn" onclick="renderCategorySelect()">← Change Category</button>
+        
+        <div class="header">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <div>
+                    <h2 style="margin: 0; font-size: 20px;">Phrase Match</h2>
+                    <div style="font-size: 12px; opacity: 0.7;">${catName}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 28px; font-weight: 900; color: #10b981;">${state.score}</div>
+                    <div style="font-size: 11px; opacity: 0.7;">points</div>
+                </div>
+            </div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value">${state.matched}</div>
+                    <div>Matched</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">${state.streak}</div>
+                    <div>Streak</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">${state.round}</div>
+                    <div>Round</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="word-grid">
+            <div class="word-column">
+                ${english.map(w => `
+                    <button 
+                        class="word-btn blue ${state.selected.includes('en'+w.id) ? 'selected' : ''} ${state.matchedIds.includes(w.id) ? 'matched' : ''}"
+                        onclick="selectWord('en${w.id}', ${w.id})"
+                        ${state.matchedIds.includes(w.id) ? 'disabled' : ''}
+                    >
+                        ${w.e}
+                    </button>
+                `).join('')}
+            </div>
+            <div class="word-column">
+                ${spanish.map(w => `
+                    <button 
+                        class="word-btn purple ${state.selected.includes('es'+w.id) ? 'selected' : ''} ${state.matchedIds.includes(w.id) ? 'matched' : ''}"
+                        onclick="selectWord('es${w.id}', ${w.id})"
+                        ${state.matchedIds.includes(w.id) ? 'disabled' : ''}
+                    >
+                        ${w.s}
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="control-btn" onclick="nextRound()">New Phrases</button>
+            <button class="control-btn" onclick="renderCategorySelect()">Reset</button>
+        </div>
+    `;
+}
+
+function selectWord(wordId, pairId) {
+    if (state.selected.includes(wordId) || state.matchedIds.includes(pairId)) return;
+    
+    state.selected.push(wordId);
+    
+    const btn = document.querySelector(`button[onclick="selectWord('${wordId}', ${pairId})"]`);
+    if (btn) btn.classList.add('selected');
+    
+    if (state.selected.length === 2) {
+        const id1 = parseInt(state.selected[0].slice(2));
+        const id2 = parseInt(state.selected[1].slice(2));
+        
+        if (id1 === id2) {
+            showFeedback(true);
+            state.matchedIds.push(pairId);
+            state.score += 12;
+            state.matched += 1;
+            state.streak += 1;
+            
+            state.selected.forEach(id => {
+                const b = document.querySelectorAll(`button[onclick*="${id}"]`)[0];
+                if (b) {
+                    b.classList.remove('selected');
+                    b.classList.add('matched');
+                    b.disabled = true;
+                }
+            });
+            
+            setTimeout(() => {
+                state.selected = [];
+                if (state.matchedIds.length === 5) {
+                    setTimeout(nextRound, 500);
+                }
+            }, 600);
+        } else {
+            showFeedback(false);
+            state.streak = 0;
+            setTimeout(() => {
+                state.selected.forEach(id => {
+                    const b = document.querySelectorAll(`button[onclick*="${id}"]`)[0];
+                    if (b) b.classList.remove('selected');
+                });
+                state.selected = [];
+            }, 600);
+        }
+    }
+}
+
+renderCategorySelect();
+    </script>
+</body>
+</html>
