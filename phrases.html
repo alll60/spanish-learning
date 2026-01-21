@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" width=device-width, initial-scale=1.0">
+    <title>WordMatch - Phrases Mode</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
+            min-height: 100vh;
+            color: white;
+            padding: 16px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { text-align: center; font-size: 40px; margin: 20px 0 10px; font-weight: 900; }
+        .subtitle { text-align: center; opacity: 0.9; margin-bottom: 30px; }
+        .category-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
+        .cat-btn {
+            padding: 20px 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            text-align: center;
+            background: rgba(255,255,255,0.9);
+            color: #1f2937;
+        }
+        .cat-btn:active { transform: scale(0.95); }
+        .word-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
+        .word-column { display: flex; flex-direction: column; gap: 12px; }
+        .word-btn {
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            word-wrap: break-word;
+            line-height: 1.3;
+            transition: opacity 0.2s;
+        }
+        .word-btn:active { opacity: 0.8; }
+        .blue { background: #3b82f6; color: white; }
+        .purple { background: #8b5cf6; color: white; }
+        .blue.selected, .purple.selected { opacity: 0.6; }
+        .blue.matched { background: #93c5fd; color: #1e3a8a; opacity: 0.5; }
+        .purple.matched { background: #c4b5fd; color: #5b21b6; opacity: 0.5; }
+        .header {
+            background: white;
+            color: #1f2937;
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+        }
+        .stats { display: flex; gap: 8px; margin-top: 12px; }
+        .stat {
+            flex: 1;
+            background: #f3f4f6;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 11px;
+        }
+        .stat-value { font-size: 18px; font-weight: bold; color: #10b981; }
+        .controls { display: flex; gap: 12px; margin-top: 16px; }
+        .control-btn {
+            flex: 1;
+            padding: 14px;
+            background: white;
+            color: #1f2937;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .emoji { font-size: 28px; margin-bottom: 6px; }
+        .feedback {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 24px 48px;
+            border-radius: 16px;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 1000;
+            animation: fadeInOut 0.6s;
+        }
+        .feedback.correct { background: #10b981; color: white; }
+        .feedback.wrong { background: #ef4444; color: white; }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="app"></div>
+    </div>
+    <script>
+const PHRASES = {
+    greetings: [
+        { e: 'Good morning', s: 'Buenos días' },
+        { e: 'Good afternoon', s: 'Buenas tardes' },
+        { e: 'Good evening', s: 'Buenas noches' },
+        { e: 'How are you?', s: '¿Cómo estás?' },
+        { e: 'I am fine, thanks', s: 'Estoy bien, gracias' },
+        { e: 'And you?', s: '¿Y tú?' },
+        { e: 'Nice to meet you', s: 'Encantado de conocerte' },
+        { e: 'See you later', s: 'Hasta luego' },
+        { e: 'See you tomorrow', s: 'Hasta mañana' },
+        { e: 'Have a good day', s: 'Que tengas un buen día' },
+        { e: 'Welcome', s: 'Bienvenido' },
+        { e: 'Long time no see', s: 'Cuánto tiempo sin verte' },
+        { e: 'How is it going?', s: '¿Qué tal?' },
+        { e: 'What is up?', s: '¿Qué pasa?' },
+        { e: 'Take care', s: 'Cuídate' }
+    ],
+    
+    courtesy: [
+        { e: 'Please', s: 'Por favor' },
+        { e: 'Thank you very much', s: 'Muchas gracias' },
+        { e: 'You are welcome', s: 'De nada' },
+        { e: 'Excuse me', s: 'Disculpe' },
+        { e: 'I am sorry', s: 'Lo siento' },
+        { e: 'No problem', s: 'No hay problema' },
+        { e: 'Don\'t worry', s: 'No te preocupes' },
+        { e: 'Excuse me (to pass)', s: 'Permiso' },
+        { e: 'Bless you', s: 'Salud' },
+        { e: 'My pleasure', s: 'Es un placer' },
+        { e: 'With pleasure', s: 'Con mucho gusto' },
+        { e: 'Sorry for the inconvenience', s: 'Perdón por las molestias' },
+        { e: 'I apologize', s: 'Pido disculpas' },
+        { e: 'May I?', s: '¿Puedo?' },
+        { e: 'After you', s: 'Después de usted' }
+    ],
+    
+    conversation: [
+        { e: 'What is your name?', s: '¿Cómo te llamas?' },
+        { e: 'My name is...', s: 'Me llamo...' },
+        { e: 'Where are you from?', s: '¿De dónde eres?' },
+        { e: 'I am from...', s: 'Soy de...' },
+        { e: 'How old are you?', s: '¿Cuántos años tienes?' },
+        { e: 'I am ... years old', s: 'Tengo ... años' },
+        { e: 'Do you speak English?', s: '¿Hablas inglés?' },
+        { e: 'I speak a little Spanish', s: 'Hablo un poco de español' },
+        { e: 'I don\'t understand', s: 'No entiendo' },
+        { e: 'Can you repeat that?', s: '¿Puedes repetir?' },
+        { e: 'More slowly, please', s: 'Más despacio, por favor' },
+        { e: 'What does that mean?', s: '¿Qué significa eso?' },
+        { e: 'How do you say...?', s: '¿Cómo se dice...?' },
+        { e: 'I don\'t speak Spanish', s: 'No hablo español' },
+        { e: 'Can you help me?', s: '¿Puedes ayudarme?' },
+        { e: 'Of course', s: 'Por supuesto' },
+        { e: 'I think so', s: 'Creo que sí' },
+        { e: 'I don\'t think so', s: 'Creo que no' },
+        { e: 'Maybe', s: 'Quizás' },
+        { e: 'Exactly', s: 'Exactamente' }
+    ],
+    
+    questions: [
+        { e: 'What?', s: '¿Qué?' },
+        { e: 'Who?', s: '¿Quién?' },
+        { e: 'Where?', s: '¿Dónde?' },
+        { e: 'When?', s: '¿Cuándo?' },
+        { e: 'Why?', s: '¿Por qué?' },
+        { e: 'How?', s: '¿Cómo?' },
+        { e: 'How much?', s: '¿Cuánto?' },
+        { e: 'How many?', s: '¿Cuántos?' },
+        { e: 'Which one?', s: '¿Cuál?' },
+        { e: 'What time is it?', s: '¿Qué hora es?' },
+        { e: 'Where is...?', s: '¿Dónde está...?' },
+        { e: 'How much does it cost?', s: '¿Cuánto cuesta?' },
+        { e: 'What is this?', s: '¿Qué es esto?' },
+        { e: 'Can I...?', s: '¿Puedo...?' },
+        { e: 'Do you have...?', s: '¿Tienes...?' },
+        { e: 'Is there...?', s: '¿Hay...?' },
+        { e: 'Where can I find...?', s: '¿Dónde puedo encontrar...?' },
+        { e: 'What is happening?', s: '¿Qué está pasando?' },
+        { e: 'What is wrong?', s: '¿Qué pasa?' },
+        { e: 'Are you sure?', s: '¿Estás seguro?' }
+    ],
+    
+    restaurant: [
+        { e: 'A table for two, please', s: 'Una mesa para dos, por favor' },
+        { e: 'The menu, please', s: 'El menú, por favor' },
+        { e: 'I would like...', s: 'Me gustaría...' },
+        { e: 'I will have...', s: 'Voy a tomar...' },
+        { e: 'What do you recommend?', s: '¿Qué recomiendas?' },
+        { e: 'I am vegetarian', s: 'Soy vegetariano' },
+        { e: 'I am allergic to...', s: 'Soy alérgico a...' },
+        { e: 'The check, please', s: 'La cuenta, por favor' },
+        { e: 'Is service included?', s: '¿Está incluido el servicio?' },
+        { e: 'It was delicious', s: 'Estaba delicioso' },
+        { e: 'Can I have the bill?', s: '¿Me trae la cuenta?' },
+        { e: 'Do you accept credit cards?', s: '¿Aceptan tarjetas de crédito?' },
+        { e: 'A glass of water, please', s: 'Un vaso de agua, por favor' },
+        { e: 'Another round, please', s: 'Otra ronda, por favor' },
+        { e: 'Enjoy your meal', s: 'Buen provecho' },
+        { e: 'I am full', s: 'Estoy lleno' },
+        { e: 'I am hungry', s: 'Tengo hambre' },
+        { e: 'I am thirsty', s: 'Tengo sed' },
+        { e: 'To go, please', s: 'Para llevar, por favor' },
+        { e: 'Can I see the wine list?', s: '¿Puedo ver la carta de vinos?' }
+    ],
+    
+    shopping: [
+        { e: 'How much is this?', s: '¿Cuánto cuesta esto?' },
+        { e: 'It is too expensive', s: 'Es muy caro' },
+        { e: 'Do you have it cheaper?', s: '¿Tiene algo más barato?' },
+        { e: 'Can I try it on?', s: '¿Puedo probármelo?' },
+        { e: 'What size?', s: '¿Qué talla?' },
+        { e: 'I will take it', s: 'Me lo llevo' },
+        { e: 'Do you accept returns?', s: '¿Aceptan devoluciones?' },
+        { e: 'I am just looking', s: 'Solo estoy mirando' },
+        { e: 'Do you have this in...?', s: '¿Tienen esto en...?' },
+        { e: 'What is on sale?', s: '¿Qué está en oferta?' },
+        { e: 'Can I get a discount?', s: '¿Me puede hacer un descuento?' },
+        { e: 'Where is the fitting room?', s: '¿Dónde está el probador?' },
+        { e: 'Do you have a receipt?', s: '¿Tiene el recibo?' },
+        { e: 'I need a bag', s: 'Necesito una bolsa' },
+        { e: 'Cash or card?', s: '¿Efectivo o tarjeta?' },
+        { e: 'Keep the change', s: 'Quédese con el cambio' },
+        { e: 'Can I pay in installments?', s: '¿Puedo pagar a plazos?' },
+        { e: 'Is this on sale?', s: '¿Está en rebaja?' },
+        { e: 'I want to return this', s: 'Quiero devolver esto' },
+        { e: 'When does it close?', s: '¿A qué hora cierra?' }
+    ],
+    
+    directions: [
+        { e: 'Where is the bathroom?', s: '¿Dónde está el baño?' },
+        { e: 'I am lost', s: 'Estoy perdido' },
+        { e: 'Can you show me on the map?', s: '¿Puede mostrarme en el mapa?' },
+        { e: 'How do I get to...?', s: '¿Cómo llego a...?' },
+        { e: 'Turn left', s: 'Gira a la izquierda' },
+        { e: 'Turn right', s: 'Gira a la derecha' },
+        { e: 'Go straight', s: 'Sigue recto' },
+        { e: 'It is nearby', s: 'Está cerca' },
+        { e: 'It is far', s: 'Está lejos' },
+        { e: 'On the corner', s: 'En la esquina' },
+        { e: 'At the traffic light', s: 'En el semáforo' },
+        { e: 'Next to...', s: 'Al lado de...' },
+        { e: 'In front of...', s: 'Enfrente de...' },
+        { e: 'Behind...', s: 'Detrás de...' },
+        { e: 'How far is it?', s: '¿A qué distancia está?' },
+        { e: 'Can I walk there?', s: '¿Puedo ir caminando?' },
+        { e: 'Do I need to take a taxi?', s: '¿Necesito tomar un taxi?' },
+        { e: 'Which bus goes to...?', s: '¿Qué autobús va a...?' },
+        { e: 'Where is the nearest...?', s: '¿Dónde está el más cercano?' },
+        { e: 'Is it this way?', s: '¿Es por aquí?' }
+    ],
+    
+    travel: [
+        { e: 'I need a ticket to...', s: 'Necesito un billete para...' },
+        { e: 'What time does it leave?', s: '¿A qué hora sale?' },
+        { e: 'What time does it arrive?', s: '¿A qué hora llega?' },
+        { e: 'Where is platform...?', s: '¿Dónde está el andén...?' },
+        { e: 'I have a reservation', s: 'Tengo una reserva' },
+        { e: 'Can I see your passport?', s: '¿Puedo ver su pasaporte?' },
+        { e: 'I am here on vacation', s: 'Estoy aquí de vacaciones' },
+        { e: 'How long are you staying?', s: '¿Cuánto tiempo te quedas?' },
+        { e: 'I am staying for ... days', s: 'Me quedo ... días' },
+        { e: 'Where are you staying?', s: '¿Dónde te hospedas?' },
+        { e: 'I have nothing to declare', s: 'No tengo nada que declarar' },
+        { e: 'My luggage is lost', s: 'Se perdió mi equipaje' },
+        { e: 'Where is the exit?', s: '¿Dónde está la salida?' },
+        { e: 'Call me a taxi, please', s: 'Llámeme un taxi, por favor' },
+        { e: 'To the airport, please', s: 'Al aeropuerto, por favor' },
+        { e: 'Stop here, please', s: 'Pare aquí, por favor' },
+        { e: 'How much is the fare?', s: '¿Cuánto es la tarifa?' },
+        { e: 'Can I have a receipt?', s: '¿Me puede dar un recibo?' },
+        { e: 'Is this the right train?', s: '¿Es este el tren correcto?' },
+        { e: 'I missed my flight', s: 'Perdí mi vuelo' }
+    ],
+    
+    hotel: [
+        { e: 'I have a reservation', s: 'Tengo una reserva' },
+        { e: 'Check in, please', s: 'Registrarme, por favor' },
+        { e: 'Check out, please', s: 'Salida, por favor' },
+        { e: 'Do you have rooms available?', s: '¿Tienen habitaciones disponibles?' },
+        { e: 'How much per night?', s: '¿Cuánto por noche?' },
+        { e: 'Can I see the room?', s: '¿Puedo ver la habitación?' },
+        { e: 'I need a wake-up call', s: 'Necesito que me despierten' },
+        { e: 'What time is breakfast?', s: '¿A qué hora es el desayuno?' },
+        { e: 'The WiFi password, please', s: 'La contraseña del WiFi, por favor' },
+        { e: 'Can I have an extra towel?', s: '¿Puedo tener una toalla extra?' },
+        { e: 'The air conditioning does not work', s: 'El aire acondicionado no funciona' },
+        { e: 'Can you call me a taxi?', s: '¿Puede llamarme un taxi?' },
+        { e: 'Where is the elevator?', s: '¿Dónde está el ascensor?' },
+        { e: 'I would like to extend my stay', s: 'Me gustaría extender mi estancia' },
+        { e: 'Can I leave my luggage here?', s: '¿Puedo dejar mi equipaje aquí?' },
+        { e: 'What time is checkout?', s: '¿A qué hora es la salida?' },
+        { e: 'Do you have a safe?', s: '¿Tienen caja fuerte?' },
+        { e: 'The room needs cleaning', s: 'La habitación necesita limpieza' },
+        { e: 'Can I have my bill?', s: '¿Puedo tener mi cuenta?' },
+        { e: 'Is breakfast included?', s: '¿Está incluido el desayuno?' }
+    ],
+    
+    emergency: [
+        { e: 'Help!', s: '¡Ayuda!' },
+        { e: 'Call the police!', s: '¡Llame a la policía!' },
+        { e: 'Call an ambulance!', s: '¡Llame una ambulancia!' },
+        { e: 'I need a doctor', s: 'Necesito un médico' },
+        { e: 'Where is the hospital?', s: '¿Dónde está el hospital?' },
+        { e: 'I am lost', s: 'Estoy perdido' },
+        { e: 'I don\'t feel well', s: 'No me siento bien' },
+        { e: 'It is an emergency', s: 'Es una emergencia' },
+        { e: 'I need help', s: 'Necesito ayuda' },
+        { e: 'Stop!', s: '¡Alto!' },
+        { e: 'Be careful!', s: '¡Ten cuidado!' },
+        { e: 'Fire!', s: '¡Fuego!' },
+        { e: 'I have been robbed', s: 'Me han robado' },
+        { e: 'I lost my passport', s: 'Perdí mi pasaporte' },
+        { e: 'Can you help me?', s: '¿Puede ayudarme?' },
+        { e: 'I need to contact my embassy', s: 'Necesito contactar mi embajada' },
+        { e: 'I am allergic to...', s: 'Soy alérgico a...' },
+        { e: 'I have insurance', s: 'Tengo seguro' },
+        { e: 'Where is the police station?', s: '¿Dónde está la comisaría?' },
+        { e: 'It hurts here', s: 'Me duele aquí' }
+    ],
+    
+    feelings: [
+        { e: 'I am happy', s: 'Estoy feliz' },
+        { e: 'I am sad', s: 'Estoy triste' },
+        { e: 'I am tired', s: 'Estoy cansado' },
+        { e: 'I am excited', s: 'Estoy emocionado' },
+        { e: 'I am worried', s: 'Estoy preocupado' },
+        { e: 'I am nervous', s: 'Estoy nervioso' },
+        { e: 'I am bored', s: 'Estoy aburrido' },
+        { e: 'I am angry', s: 'Estoy enojado' },
+        { e: 'I am scared', s: 'Tengo miedo' },
+        { e: 'I am confused', s: 'Estoy confundido' },
+        { e: 'I am surprised', s: 'Estoy sorprendido' },
+        { e: 'I am stressed', s: 'Estoy estresado' },
+        { e: 'I am relaxed', s: 'Estoy relajado' },
+        { e: 'I am grateful', s: 'Estoy agradecido' },
+        { e: 'I am disappointed', s: 'Estoy decepcionado' },
+        { e: 'I am proud', s: 'Estoy orgulloso' },
+        { e: 'I am embarrassed', s: 'Estoy avergonzado' },
+        { e: 'I am frustrated', s: 'Estoy frustrado' },
+        { e: 'I am hopeful', s: 'Tengo esperanza' },
+        { e: 'I am comfortable', s: 'Estoy cómodo' }
+    ]
+};
+
+const CATEGORIES = [
+    { key: 'greetings', name: 'Greetings', emoji: '👋' },
+    { key: 'courtesy', name: 'Courtesy', emoji: '🙏' },
+    { key: 'conversation', name: 'Conversation', emoji: '💬' },
+    { key: 'questions', name: 'Questions', emoji: '❓' },
+    { key: 'restaurant', name: 'Restaurant', emoji: '🍽️' },
+    { key: 'shopping', name: 'Shopping', emoji: '🛍️' },
+    { key: 'directions', name: 'Directions', emoji: '🗺️' },
+    { key: 'travel', name: 'Travel', emoji: '✈️' },
+    { key: 'hotel', name: 'Hotel', emoji: '🏨' },
+    { key: 'emergency', name: 'Emergency', emoji: '🚨' },
+    { key: 'feelings', name: 'Feelings', emoji: '😊' },
+];
+
+let state = {
+    category: '',
+    score: 0,
+    matched: 0,
+    streak: 0,
+    round: 0,
+    selected: [],
+    matchedIds: [],
+    currentPairs: [],
+    used: new Set()
+};
+
+function shuffle(arr) {
+    return [...arr].sort(() => Math.random() - 0.5);
+}
+
+function showFeedback(isCorrect) {
+    const feedback = document.createElement('div');
+    feedback.className = `feedback ${isCorrect ? 'correct' : 'wrong'}`;
+    feedback.textContent = isCorrect ? 'Perfect! ✓' : 'Wrong! ✗';
+    document.body.appendChild(feedback);
+    setTimeout(() => feedback.remove(), 600);
+}
+
+function startGame(cat) {
+    state.category = cat;
+    state.score = 0;
+    state.matched = 0;
+    state.streak = 0;
+    state.round = 0;
+    state.used = new Set();
+    nextRound();
+}
+
+function nextRound() {
+    state.selected = [];
+    state.matchedIds = [];
+    state.round++;
+    
+    const allPhrases = PHRASES[state.category];
+    const available = allPhrases.filter((_, i) => !state.used.has(i));
+    
+    if (available.length < 5) {
+        state.used = new Set();
+    }
+    
+    const pairs = [];
+    const used = new Set(state.used);
+    
+    while (pairs.length < 5 && pairs.length < allPhrases.length) {
+        const idx = Math.floor(Math.random() * allPhrases.length);
+        if (!used.has(idx)) {
+            pairs.push({ ...allPhrases[idx], id: pairs.length });
+            used.add(idx);
+        }
+    }
+    
+    state.used = used;
+    state.currentPairs = pairs;
+    renderGame();
+}
+
+function renderCategorySelect() {
+    const app = document.getElementById('app');
+    app.innerHTML = `
+        <h1>Phrase Match</h1>
+        <p class="subtitle">Choose a category</p>
+        <div class="category-grid">
+            ${CATEGORIES.map(cat => `
+                <button class="cat-btn" onclick="startGame('${cat.key}')">
+                    <div class="emoji">${cat.emoji}</div>
+                    <div>${cat.name}</div>
+                </button>
+            `).join('')}
+        </div>
+    `;
+}
+
+function renderGame() {
+    const english = shuffle(state.currentPairs.map(p => ({...p, side: 'en'})));
+    const spanish = shuffle(state.currentPairs.map(p => ({...p, side: 'es'})));
+    const catName = CATEGORIES.find(c => c.key === state.category).name;
+    
+    document.getElementById('app').innerHTML = `
+        <button class="back-btn" onclick="renderCategorySelect()">← Change Category</button>
+        
+        <div class="header">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <div>
+                    <h2 style="margin: 0; font-size: 20px;">Phrase Match</h2>
+                    <div style="font-size: 12px; opacity: 0.7;">${catName}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 28px; font-weight: 900; color: #10b981;">${state.score}</div>
+                    <div style="font-size: 11px; opacity: 0.7;">points</div>
+                </div>
+            </div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value">${state.matched}</div>
+                    <div>Matched</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">${state.streak}</div>
+                    <div>Streak</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">${state.round}</div>
+                    <div>Round</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="word-grid">
+            <div class="word-column">
+                ${english.map(w => `
+                    <button 
+                        class="word-btn blue ${state.selected.includes('en'+w.id) ? 'selected' : ''} ${state.matchedIds.includes(w.id) ? 'matched' : ''}"
+                        onclick="selectWord('en${w.id}', ${w.id})"
+                        ${state.matchedIds.includes(w.id) ? 'disabled' : ''}
+                    >
+                        ${w.e}
+                    </button>
+                `).join('')}
+            </div>
+            <div class="word-column">
+                ${spanish.map(w => `
+                    <button 
+                        class="word-btn purple ${state.selected.includes('es'+w.id) ? 'selected' : ''} ${state.matchedIds.includes(w.id) ? 'matched' : ''}"
+                        onclick="selectWord('es${w.id}', ${w.id})"
+                        ${state.matchedIds.includes(w.id) ? 'disabled' : ''}
+                    >
+                        ${w.s}
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="control-btn" onclick="nextRound()">New Phrases</button>
+            <button class="control-btn" onclick="renderCategorySelect()">Reset</button>
+        </div>
+    `;
+}
+
+function selectWord(wordId, pairId) {
+    if (state.selected.includes(wordId) || state.matchedIds.includes(pairId)) return;
+    
+    state.selected.push(wordId);
+    
+    const btn = document.querySelector(`button[onclick="selectWord('${wordId}', ${pairId})"]`);
+    if (btn) btn.classList.add('selected');
+    
+    if (state.selected.length === 2) {
+        const id1 = parseInt(state.selected[0].slice(2));
+        const id2 = parseInt(state.selected[1].slice(2));
+        
+        if (id1 === id2) {
+            showFeedback(true);
+            state.matchedIds.push(pairId);
+            state.score += 12;
+            state.matched += 1;
+            state.streak += 1;
+            
+            state.selected.forEach(id => {
+                const b = document.querySelectorAll(`button[onclick*="${id}"]`)[0];
+                if (b) {
+                    b.classList.remove('selected');
+                    b.classList.add('matched');
+                    b.disabled = true;
+                }
+            });
+            
+            setTimeout(() => {
+                state.selected = [];
+                if (state.matchedIds.length === 5) {
+                    setTimeout(nextRound, 500);
+                }
+            }, 600);
+        } else {
+            showFeedback(false);
+            state.streak = 0;
+            setTimeout(() => {
+                state.selected.forEach(id => {
+                    const b = document.querySelectorAll(`button[onclick*="${id}"]`)[0];
+                    if (b) b.classList.remove('selected');
+                });
+                state.selected = [];
+            }, 600);
+        }
+    }
+}
+
+renderCategorySelect();
+    </script>
+</body>
+</html>
